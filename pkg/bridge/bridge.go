@@ -45,6 +45,36 @@ func CreateBridge(bridge string, mtu int, gateway *net.IPNet) (netlink.Link, err
 	return dev, nil
 }
 
+// 首先创建 bridge br0
+// ip l a br0 type bridge
+// ip l s br0 up
+
+// 然后创建两对 veth-pair
+// ip l a veth0 type veth peer name br-veth0
+// ip l a veth1 type veth peer name br-veth1
+//
+// 分别将两对 veth-pair 加入两个 ns 和 br0
+// ip l s veth0 netns ns1
+// ip l s br-veth0 master br0
+// ip l s br-veth0 up
+//
+// ip l s veth1 netns ns2
+// ip l s br-veth1 master br0
+// ip l s br-veth1 up
+//
+// 给两个 ns 中的 veth 配置 IP 并启用
+// ip netns exec ns1 ip a a 10.1.1.2/24 dev veth0
+// ip netns exec ns1 ip l s veth0 up
+//
+// ip netns exec ns2 ip a a 10.1.1.3/24 dev veth1
+// ip netns exec ns2 ip l s veth1 up
+
+// SetupVeth
+// netns: pod namespace
+// ifName: pod interface name
+// podIP: pod ip
+// br: bridge
+// gateway: bridge ip
 func SetupVeth(netns ns.NetNS, br netlink.Link, mtu int, ifName string, podIP *net.IPNet, gateway net.IP) error {
 	hostIface := &current.Interface{}
 	err := netns.Do(func(hostNS ns.NetNS) error {
